@@ -56,13 +56,20 @@ def handle_words(request, channel):
 def handle_request(request, channel):
    
 
-    if request == "Hi":
-        response = "Hello There!"
+    db = sqlite3.connect('chatbot.db')
+    cur = db.cursor()
+    result = cur.execute('SELECT res FROM greet WHERE req = :k', {"k":request})
+    if(result==0):
+        db.close()
+        handle_words(request, channel)
+    else:
+        
+        res = cur.fetchone()
+        response = res[0]        
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-    elif request == "Hello":
-        response = "Hi! How can I help you?"
-        slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-    else: handle_words(request, channel)
+        db.close()
+    
+    
     
 
 def parse_slack_output(slack_rtm_output):
