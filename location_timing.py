@@ -77,6 +77,16 @@ def query_keywords(keywords,name, channel):
                     #print r[2]
                     response = "Section " + a[0:len(a)-2] + " schedule is " + r[1] + " " + r[2]
                     slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+            elif row[0] == "seats, section":
+                for r in res:
+                    str(r[0])
+                    int(r[1])
+                    a = str(r[1])
+                    a.split(".")
+                    #print r[0]
+                    #print r[1]
+                    response = "Section " + a[0:len(a)-2] + " has " + r[0] + " seats."
+                    slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         else:
             response = res 
             slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
