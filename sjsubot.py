@@ -21,17 +21,18 @@ def query_keywords(keywords,name, channel):
 
     cur = db.cursor()
     result = cur.execute('SELECT clmn,tbl,source FROM data WHERE keywords = :k', {"k":keywords})
-    if result == 0:
+    row = cur.fetchone()
+    if row == None:
         response = "I am yet to learn that"
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
     else:
-        row = cur.fetchone()
         query = "SELECT {} FROM {} WHERE {} = :n".format(row[0], row[1], row[2])
-        if cur.execute(query,{"n":name}) == 0:
+        cur.execute(query,{"n":name})
+        res = cur.fetchone()
+        if res == None:
             response = "I am yet to learn that"
             slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         else:    
-            res = cur.fetchone()
             for r in res:
                 response = r    
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
@@ -58,13 +59,13 @@ def handle_request(request, channel):
 
     db = sqlite3.connect('chatbot.db')
     cur = db.cursor()
-    result = cur.execute('SELECT res FROM greet WHERE req = :k', {"k":request})
-    if(result==0):
+    result = cur.execute('SELECT res FROM greet WHERE req = :k', {"k":request.lower()})
+    res = cur.fetchone()
+    if res == None :
         db.close()
         handle_words(request, channel)
     else:
-        
-        res = cur.fetchone()
+            
         response = res[0]        
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         db.close()
