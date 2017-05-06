@@ -38,6 +38,58 @@ def query_keywords(keywords,name, channel):
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
     db.close()
 
+
+def handle_multireq(noun,proper_noun,channel):
+    nounlist=" ".join(["name","professor", "instructor"])
+    if noun in nounlist:
+        db = sqlite3.connect('chatbot.db')
+        cur = db.cursor()
+        cur.execute('INSERT INTO temp (noun, pnoun) VALUES (:n,:p)',{"n":noun, "p":proper_noun})
+        db.commit()
+        db.close()
+        
+        response = "which section you are looking for ?"
+        slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+
+    else:
+        query_keywords(noun,str(proper_noun), channel)
+
+
+
+def handle_section(value,channel):
+    db = sqlite3.connect('chatbot.db')
+    cur = db.cursor()
+    result = cur.execute('SELECT * FROM temp')
+    row = cur.fetchone()
+    if row == None:
+        response = "I am yet to learn that"
+        slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+    else:
+        name=row[1]
+        key=row[0]
+        re=cur.execute('DELETE FROM temp')
+        db.commit()
+        result = cur.execute('SELECT clmn,tbl,source FROM data WHERE keywords = :k', {"k":key})
+        row = cur.fetchone()
+        if row == None:
+            response = "I am yet to learn that"
+            slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+        else:
+            query = "SELECT {} FROM {} WHERE {} = :n AND SECTION= :v".format(row[0], row[1], row[2])
+            cur.execute(query,{"n":name,"v":value})
+            res = cur.fetchone()
+            if res == None:
+                response = "I am yet to learn that"
+                slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+            else:
+                for r in res:
+                    response = r
+                    slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+        db.close()
+    db.close()
+
+
+
 def handle_words(request, channel):
     text = TextBlob(request)
     list_tags = text.tags
@@ -52,11 +104,14 @@ def handle_words(request, channel):
              list_pnoun.append(el[0])
     noun = " ".join( list_noun)
     proper_noun = " ".join(list_pnoun)
-    query_keywords(noun,str(proper_noun), channel)
+
+    if proper_noun.isdigit():
+        value = int(proper_noun)
+        handle_section(value,channel)
+    else:
+        handle_multireq(noun,proper_noun,channel)
 
 def handle_request(request, channel):
-   
-
     db = sqlite3.connect('chatbot.db')
     cur = db.cursor()
     result = cur.execute('SELECT res FROM greet WHERE req = :k', {"k":request.lower()})
@@ -69,8 +124,6 @@ def handle_request(request, channel):
         response = res[0]        
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         db.close()
-    
-    
     
 
 def parse_slack_output(slack_rtm_output):
