@@ -1,4 +1,5 @@
 CMPE 273 Project: sjsu chatbot
+==============================
 
 Make sure all the below required softwares are installed to run this chatbot:
 
@@ -23,8 +24,6 @@ How to Run:
 Database Structure:
 ================
 We have used SQlite3 for implementing our SJSU chatbot application. It is a self-contained, server less, zero-configuration, transactional SQL database engine. The more important reason to choose this database is because its light weight which does not affect the performance of our application.
-
-
 We have Defined all data structure shown as below and procedures to manipulate the database objects.
 
 Table Name                                                                Details
