@@ -20,7 +20,6 @@ slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
 def get_response(row,name,channel):
     db = sqlite3.connect('chatbot.db')
-    print ("Row: %s, Name: %s, Channel: %s" % (row,name,channel))
 
     if "Prof" in name:
         name = name.split("Prof")[-1].split(".")[-1].lstrip()
@@ -53,7 +52,6 @@ def get_response(row,name,channel):
                 response = "Section " + a[0:len(a)-2] + " has " + r[0] + " seats."
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         elif row == ("time", "prof_office_hour", "prof_name"):
-            print "res = ", res
             for r in res[0]:
                 response = r.split()
                 if response[0] in PREPOSITION_LIST:
@@ -160,6 +158,8 @@ def handle_words(request, channel):
             response = "I am yet to learn that language. Please speak in English."
             slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
             return
+
+    req = req.lower()
 
     proper_noun = " ".join(list_pnoun)
     text2 = TextBlob(req)
