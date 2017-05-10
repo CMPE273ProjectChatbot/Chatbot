@@ -40,7 +40,9 @@ We have Defined all data structure shown as below and procedures to manipulate t
 How to Run:
 ===========
 You need to have a Slack token and Bot ID to run this application. These two information must be stored in environment variables named : SLACK_BOT_TOKEN and BOT_ID. You can set them using commands:
+
 export SLACK_BOT_TOKEN='your Slack token'
+
 export BOT_ID='your bot id'
 
 After this the Bot application can be started by using the command:
