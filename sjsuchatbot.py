@@ -3,12 +3,15 @@ import time
 from slackclient import SlackClient
 import sqlite3
 from textblob import TextBlob
+from textblob import Word
 
 # bot's ID as an environment variable
 BOT_ID = os.environ.get("BOT_ID")
 
 # constants
 AT_BOT = "<@" + BOT_ID + ">"
+NOUN_LIST =" ".join(["name","professor", "instructor"])
+PREPOSITION_LIST = ['from','On', 'By']
  
 
 conn = sqlite3.connect('chatbot.db')
@@ -17,6 +20,10 @@ slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
 def get_response(row,name,channel):
     db = sqlite3.connect('chatbot.db')
+    print ("Row: %s, Name: %s, Channel: %s" % (row,name,channel))
+
+    if "Prof" in name:
+        name = name.split("Prof")[-1].split(".")[-1].lstrip()
 
     cur = db.cursor()
     query = "SELECT {} FROM {} WHERE {} = :n".format(row[0], row[1], row[2])
@@ -29,28 +36,30 @@ def get_response(row,name,channel):
     elif res > 0:
         if row[0] == "location, section":
             for r in res:
-                str(r[0])
-                int(r[1])
                 a = str(r[1])
                 a.split(".")
                 response = "Section " + a[0:len(a)-2] + " is in " + r[0]
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         elif row[0] ==  "section, class_day, class_time":
             for r in res:
-                str(r[1])
-                int(r[0])
-                str(r[2])
                 a = str(r[0])
                 a.split(".")
                 response = "Section " + a[0:len(a)-2] + " schedule is " + r[1] + " " + r[2]
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         elif row[0] == "seats, section":
             for r in res:
-                str(r[0])
-                int(r[1])
                 a = str(r[1])
                 a.split(".")
                 response = "Section " + a[0:len(a)-2] + " has " + r[0] + " seats."
+                slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+        elif row == ("time", "prof_office_hour", "prof_name"):
+            print "res = ", res
+            for r in res[0]:
+                response = r.split()
+                if response[0] in PREPOSITION_LIST:
+                    response = "Office hours of Prof. " + name + " is " + response[0].lower() + ' ' + ' '.join(response[1:])
+                else:
+                    response = "Office hours of Prof. " + name + " is on " + r
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         else:
             for r in res[0]:
@@ -82,8 +91,7 @@ def query_keywords(req,keywords,name, channel):
 
 
 def handle_multireq(req,noun,proper_noun,channel):
-    nounlist=" ".join(["name","professor", "instructor"])
-    if noun in nounlist:
+    if noun in NOUN_LIST:
         db = sqlite3.connect('chatbot.db')
         cur = db.cursor()
         cur.execute('INSERT INTO temp (noun, pnoun) VALUES (:n,:p)',{"n":noun, "p":proper_noun})
@@ -164,8 +172,7 @@ def handle_request(request, channel):
     if res == None :
         db.close()
         handle_words(request, channel)
-    else:
-            
+    else:   
         response = res[0]        
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         db.close()
