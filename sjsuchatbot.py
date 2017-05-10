@@ -3,27 +3,21 @@ import time
 from slackclient import SlackClient
 import sqlite3
 from textblob import TextBlob
-from textblob import Word
 
-#Bot's ID as an environment variable
+# bot's ID as an environment variable
 BOT_ID = os.environ.get("BOT_ID")
 
-#Constants
+# constants
 AT_BOT = "<@" + BOT_ID + ">"
-NOUN_LIST =" ".join(["name","professor", "instructor"])
-PREPOSITION_LIST = ['from','On', 'By']
- 
+
 
 conn = sqlite3.connect('chatbot.db')
-#Instantiate Slack client
+# instantiate Slack & Twilio clients
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
 def get_response(row,name,channel):
     db = sqlite3.connect('chatbot.db')
-    print ("get_response__________", row, name)
-    if "Prof" in name:
-        name = name.split("Prof")[-1].split(".")[-1].lstrip()
-
+    
     cur = db.cursor()
     query = "SELECT {} FROM {} WHERE {} = :n".format(row[0], row[1], row[2])
     cur.execute(query,{"n":name})
@@ -31,58 +25,55 @@ def get_response(row,name,channel):
     if res == []:
         response = "I am yet to learn that"
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-
+    
     elif res > 0:
         if row[0] == "location, section":
             for r in res:
+                str(r[0])
+                int(r[1])
                 a = str(r[1])
                 a.split(".")
                 response = "Section " + a[0:len(a)-2] + " is in " + r[0]
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         elif row[0] ==  "section, class_day, class_time":
             for r in res:
+                str(r[1])
+                int(r[0])
+                str(r[2])
                 a = str(r[0])
                 a.split(".")
                 response = "Section " + a[0:len(a)-2] + " schedule is " + r[1] + " " + r[2]
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         elif row[0] == "seats, section":
             for r in res:
+                str(r[0])
+                int(r[1])
                 a = str(r[1])
                 a.split(".")
                 response = "Section " + a[0:len(a)-2] + " has " + r[0] + " seats."
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-        elif row == ("time", "prof_office_hour", "prof_name"):
-            for r in res[0]:
-                response = r.split()
-                if response[0] in PREPOSITION_LIST:
-                    response = "Office hours of Prof. " + name + " is " + response[0].lower() + ' ' + ' '.join(response[1:])
-                else:
-                    response = "Office hours of Prof. " + name + " is on " + r
-                slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         else:
             for r in res[0]:
-                response = r    
+                response = r
                 slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-            
+
     else:
-        response = res   
+        response = res
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-    db.close()
+        db.close()
 
 def query_keywords(req,keywords,name, channel):
-    print ("query_keywords__________",req, keywords, name,)
     db = sqlite3.connect('chatbot.db')
+    
     cur = db.cursor()
     result = cur.execute('SELECT clmn,tbl,source FROM data WHERE keywords = :k', {"k":keywords})
     row = cur.fetchone()
     if row == None:
         result = cur.execute('SELECT clmn,tbl,source FROM data WHERE keywords = :k', {"k":req})
         row = cur.fetchone()
-        print(row)
         if row == None:
-            get_response(row,name,channel)
-            #response = "I am yet to learn that"
-            #slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+            response = "I am yet to learn that"
+            slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         else:
             get_response(row,name,channel)
     else:
@@ -91,8 +82,8 @@ def query_keywords(req,keywords,name, channel):
 
 
 def handle_multireq(req,noun,proper_noun,channel):
-    print ("handle_multireq__________", req, noun, proper_noun)
-    if noun in NOUN_LIST:
+    nounlist=" ".join(["name","professor", "instructor"])
+    if noun in nounlist:
         db = sqlite3.connect('chatbot.db')
         cur = db.cursor()
         cur.execute('INSERT INTO temp (noun, pnoun) VALUES (:n,:p)',{"n":noun, "p":proper_noun})
@@ -101,14 +92,13 @@ def handle_multireq(req,noun,proper_noun,channel):
         
         response = "Which section are you looking for ?"
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-
+    
     else:
         query_keywords(req,noun,str(proper_noun), channel)
 
 
 
 def handle_section(value,channel):
-    print ("handle section__________", value)
     db = sqlite3.connect('chatbot.db')
     cur = db.cursor()
     result = cur.execute('SELECT * FROM temp')
@@ -143,7 +133,6 @@ def handle_section(value,channel):
 
 
 def handle_words(request, channel):
-    print ("handle_words __________", request)
     text1 = TextBlob(request)
     list_pnoun = []
     list_noun = []
@@ -151,32 +140,16 @@ def handle_words(request, channel):
     for el in text1.tags:
         if el[1] == "NNP" or el[1] == "NNPS" or el[1] == "CD":
             list_pnoun.append(el[0])
-        else: 
+        else:
             list_req.append(el[0])
     req = " ".join(list_req)
-    print (req)
-    reqTextBlob = TextBlob(req)
-    #req = str(reqTextBlob.correct())
-    req = reqTextBlob
-    req = str(req)
-    print (req)
-
-    if len(reqTextBlob) > 2:
-        if reqTextBlob.detect_language() != "en":
-            response = "I am yet to learn that language. Please speak in English."
-            slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
-            return
-
-    req = req.lower()
-    print (req)
-
     proper_noun = " ".join(list_pnoun)
     text2 = TextBlob(req)
     for elem in text2.tags:
         if elem[1] == "NN":
             list_noun.append(elem[0])
     noun = " ".join(list_noun)
-    
+    req = req.lower()
     if proper_noun.isdigit():
         value = int(proper_noun)
         handle_section(value,channel)
@@ -184,7 +157,6 @@ def handle_words(request, channel):
         handle_multireq(req,noun,proper_noun,channel)
 
 def handle_request(request, channel):
-    print ("handle_request ______", request) 
     db = sqlite3.connect('chatbot.db')
     cur = db.cursor()
     result = cur.execute('SELECT res FROM greet WHERE req = :k', {"k":request.lower()})
@@ -192,26 +164,20 @@ def handle_request(request, channel):
     if res == None :
         db.close()
         handle_words(request, channel)
-    else:   
-        response = res[0]        
+    else:
+        response = res[0]
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         db.close()
-    
+
 
 def parse_slack_output(slack_rtm_output):
-    """
-        The Slack Real Time Messaging API is an events firehose.
-        this parsing function returns None unless a message is
-        directed at the Bot, based on its ID.
-    """
-    #print ("parse slack output")
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
             if output and 'text' in output and AT_BOT in output['text']:
                 # return text after the @ mention, whitespace removed
                 return output['text'].split(AT_BOT)[1].strip(), \
-                       output['channel']
+                    output['channel']
     return None, None
 
 if __name__ == "__main__":
