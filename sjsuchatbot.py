@@ -20,7 +20,7 @@ slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
 def get_response(row,name,channel):
     db = sqlite3.connect('chatbot.db')
-
+    print ("get_response__________", row, name)
     if "Prof" in name:
         name = name.split("Prof")[-1].split(".")[-1].lstrip()
 
@@ -70,17 +70,19 @@ def get_response(row,name,channel):
     db.close()
 
 def query_keywords(req,keywords,name, channel):
+    print ("query_keywords__________",req, keywords, name,)
     db = sqlite3.connect('chatbot.db')
-
     cur = db.cursor()
     result = cur.execute('SELECT clmn,tbl,source FROM data WHERE keywords = :k', {"k":keywords})
     row = cur.fetchone()
     if row == None:
         result = cur.execute('SELECT clmn,tbl,source FROM data WHERE keywords = :k', {"k":req})
         row = cur.fetchone()
+        print(row)
         if row == None:
-            response = "I am yet to learn that"
-            slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+            get_response(row,name,channel)
+            #response = "I am yet to learn that"
+            #slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
         else:
             get_response(row,name,channel)
     else:
@@ -89,6 +91,7 @@ def query_keywords(req,keywords,name, channel):
 
 
 def handle_multireq(req,noun,proper_noun,channel):
+    print ("handle_multireq__________", req, noun, proper_noun)
     if noun in NOUN_LIST:
         db = sqlite3.connect('chatbot.db')
         cur = db.cursor()
@@ -105,6 +108,7 @@ def handle_multireq(req,noun,proper_noun,channel):
 
 
 def handle_section(value,channel):
+    print ("handle section__________", value)
     db = sqlite3.connect('chatbot.db')
     cur = db.cursor()
     result = cur.execute('SELECT * FROM temp')
@@ -139,6 +143,7 @@ def handle_section(value,channel):
 
 
 def handle_words(request, channel):
+    print ("handle_words __________", request)
     text1 = TextBlob(request)
     list_pnoun = []
     list_noun = []
@@ -149,9 +154,12 @@ def handle_words(request, channel):
         else: 
             list_req.append(el[0])
     req = " ".join(list_req)
-
+    print (req)
     reqTextBlob = TextBlob(req)
-    req = str(reqTextBlob.correct())
+    #req = str(reqTextBlob.correct())
+    req = reqTextBlob
+    req = str(req)
+    print (req)
 
     if len(reqTextBlob) > 2:
         if reqTextBlob.detect_language() != "en":
@@ -160,6 +168,7 @@ def handle_words(request, channel):
             return
 
     req = req.lower()
+    print (req)
 
     proper_noun = " ".join(list_pnoun)
     text2 = TextBlob(req)
@@ -175,6 +184,7 @@ def handle_words(request, channel):
         handle_multireq(req,noun,proper_noun,channel)
 
 def handle_request(request, channel):
+    print ("handle_request ______", request) 
     db = sqlite3.connect('chatbot.db')
     cur = db.cursor()
     result = cur.execute('SELECT res FROM greet WHERE req = :k', {"k":request.lower()})
@@ -194,6 +204,7 @@ def parse_slack_output(slack_rtm_output):
         this parsing function returns None unless a message is
         directed at the Bot, based on its ID.
     """
+    #print ("parse slack output")
     output_list = slack_rtm_output
     if output_list and len(output_list) > 0:
         for output in output_list:
