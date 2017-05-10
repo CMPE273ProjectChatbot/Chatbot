@@ -5,17 +5,17 @@ import sqlite3
 from textblob import TextBlob
 from textblob import Word
 
-# bot's ID as an environment variable
+#Bot's ID as an environment variable
 BOT_ID = os.environ.get("BOT_ID")
 
-# constants
+#Constants
 AT_BOT = "<@" + BOT_ID + ">"
 NOUN_LIST =" ".join(["name","professor", "instructor"])
 PREPOSITION_LIST = ['from','On', 'By']
  
 
 conn = sqlite3.connect('chatbot.db')
-# instantiate Slack & Twilio clients
+#Instantiate Slack client
 slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
 def get_response(row,name,channel):
@@ -151,13 +151,23 @@ def handle_words(request, channel):
         else: 
             list_req.append(el[0])
     req = " ".join(list_req)
+
+    reqTextBlob = TextBlob(req)
+    req = str(reqTextBlob.correct())
+
+    if len(reqTextBlob) > 2:
+        if reqTextBlob.detect_language() != "en":
+            response = "I am yet to learn that language. Please speak in English."
+            slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
+            return
+
     proper_noun = " ".join(list_pnoun)
     text2 = TextBlob(req)
     for elem in text2.tags:
         if elem[1] == "NN":
             list_noun.append(elem[0])
     noun = " ".join(list_noun)
-
+    
     if proper_noun.isdigit():
         value = int(proper_noun)
         handle_section(value,channel)
