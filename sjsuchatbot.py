@@ -4,12 +4,11 @@ from slackclient import SlackClient
 import sqlite3
 from textblob import TextBlob
 
-# starterbot's ID as an environment variable
+# bot's ID as an environment variable
 BOT_ID = os.environ.get("BOT_ID")
 
 # constants
 AT_BOT = "<@" + BOT_ID + ">"
-EXAMPLE_COMMAND = "do"
  
 
 conn = sqlite3.connect('chatbot.db')
@@ -91,7 +90,7 @@ def handle_multireq(req,noun,proper_noun,channel):
         db.commit()
         db.close()
         
-        response = "which section are you looking for ?"
+        response = "Which section are you looking for ?"
         slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
 
     else:
